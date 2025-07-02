@@ -23,15 +23,50 @@ UART_HandleTypeDef huart4;
 UART_HandleTypeDef huart5;
 UART_HandleTypeDef huart6;
 
-/* Private Variables *******************************************************/
+/* Define TIMERS handle variables */
+TIM_HandleTypeDef htim1;
+TIM_HandleTypeDef htim2;
+TIM_HandleTypeDef htim3;
+TIM_HandleTypeDef htim15;
 
-/* Global variables for sensor data used in ModuleParam */
+/* Private Variables *******************************************************/
+/**
+ * Motor configurations for up to 4 Servo motors.
+ * Each entry defines the timer handle, channel, and CCR register
+ * for the respective motor.
+ */
+const MotorConfig_t motors[] = {
+    { &TIMER_HANDLE_OUT1, TIMER_CHANAL_OUT1, &TIMER_CCR_OUT1 },
+    { &TIMER_HANDLE_OUT2, TIMER_CHANAL_OUT2, &TIMER_CCR_OUT2 },
+    { &TIMER_HANDLE_OUT3, TIMER_CHANAL_OUT3, &TIMER_CCR_OUT3 },
+    { &TIMER_HANDLE_OUT4, TIMER_CHANAL_OUT4, &TIMER_CCR_OUT4 }
+};
+/* Generic output channel configuration used for PWM signal generation.*/
+const MotorConfig_t ChannelsOut[] = {
+    { &TIMER_HANDLE_OUT1, TIMER_CHANAL_OUT1, &TIMER_CCR_OUT1 },
+    { &TIMER_HANDLE_OUT2, TIMER_CHANAL_OUT2, &TIMER_CCR_OUT2 },
+    { &TIMER_HANDLE_OUT3, TIMER_CHANAL_OUT3, &TIMER_CCR_OUT3 },
+    { &TIMER_HANDLE_OUT4, TIMER_CHANAL_OUT4, &TIMER_CCR_OUT4 }
+};
+
+/*Bitmask flags to track which Servo channels have started PWM.*/
+uint16_t ServoPwmStartedFlags = 0U;
+/*Bitmask flags to track which general output channels have started PWM*/
+uint16_t  pwmStartedFlags = 0U;
+/*Stores the previously used frequency for each output channel*/
+uint32_t prevFreq[NUM_OUTS]= {0};
 
 
 /* Module Parameters */
 ModuleParam_t ModuleParam[NUM_MODULE_PARAMS] ={};
 
 /* Private function prototypes *********************************************/
+/* TIMERS Initialization Function*/
+void MX_TIM1_Init(void);
+void MX_TIM2_Init(void);
+void MX_TIM3_Init(void);
+void MX_TIM15_Init(void);
+
 uint8_t ClearROtopology(void);
 void Module_Peripheral_Init(void);
 void SetupPortForRemoteBootloaderUpdate(uint8_t port);
@@ -39,7 +74,7 @@ void RemoteBootloaderUpdate(uint8_t src,uint8_t dst,uint8_t inport,uint8_t outpo
 Module_Status Module_MessagingTask(uint16_t code,uint8_t port,uint8_t src,uint8_t dst,uint8_t shift);
 
 /* Local function prototypes ***********************************************/
-
+uint16_t RemapValue(uint8_t x, uint8_t in_min, uint8_t in_max, uint16_t out_min, uint16_t out_max);
 /* Create CLI commands *****************************************************/
 
 /* CLI command structure ***************************************************/
@@ -455,6 +490,11 @@ void Module_Peripheral_Init(void){
 	MX_USART5_UART_Init();
 	MX_USART6_UART_Init();
 
+	MX_TIM1_Init();
+	MX_TIM2_Init();
+	MX_TIM3_Init();
+	MX_TIM15_Init();
+
 	/* Circulating DMA Channels ON All Module */
 	for(int i =1; i <= NUM_OF_PORTS; i++){
 		if(GetUart(i) == &huart1){
@@ -544,14 +584,53 @@ Module_Status GetModuleParameter(uint8_t paramIndex,float *value){
 /***************************************************************************/
 /****************************** Local Functions ****************************/
 /***************************************************************************/
-
+/**
+ * remapValues a value from one range to another.
+ * x: The value to remapValue.
+ * in_min: The lower bound of the input range.
+ * in_max: The upper bound of the input range.
+ * out_min: The lower bound of the output range.
+ * out_max: The upper bound of the output range.
+ * @return The remapValueped value within the output range.
+ */
+uint16_t RemapValue(uint8_t x, uint8_t in_min, uint8_t in_max, uint16_t out_min, uint16_t out_max)
+{
+  return (x - in_min) * (out_max - out_min + 1) / (in_max - in_min + 1) + out_min;
+}
 
 
 
 /***************************************************************************/
 /***************************** General Functions ***************************/
 /***************************************************************************/
+/***************************************************************************/
+/**
+ * @Set the speed (duty cycle) of a motor
+ * motor: Motor index (MOTOR_1 to MOTOR_4).
+ * Angle:  Angle of the servo (0 to 180) degree.
+ */
+Module_Status SetServoAngle(Motor motor, uint8_t angle) {
+	if (motor > MOTOR_4 || motor < MOTOR_1) {
+		return H14R9_ERR_INVALID_MOTOR;
+	}
 
+	if (angle > MAX_SERVO_ANGLE || angle < MIN_SERVO_ANGLE) {
+		return H14R9_ERR_WRONGPARAMS;
+	} else {
+
+		/*Check if PWM has actually already started or not*/
+		if (!(ServoPwmStartedFlags & (1 << motor))) {
+			if (HAL_TIM_PWM_Start(motors[motor].htim, motors[motor].channel)!= HAL_OK) {
+				return H14R9_ERROR;
+			}
+			/*Set the Flag after PWM started*/
+			ServoPwmStartedFlags |= (1 << motor);
+		}
+		/* mapping the desired angle (0–180) to the corresponding timer CCRx value*/
+		*(motors[motor].CCRx) = RemapValue(angle, MIN_SERVO_ANGLE,MAX_SERVO_ANGLE, MIN_CCR_VALUE, MAX_CCR_VALUE);
+		return H14R9_OK;
+	}
+}
 
 /***************************************************************************/
 /********************************* Commands ********************************/

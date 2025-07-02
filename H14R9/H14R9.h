@@ -156,9 +156,9 @@ extern TIM_HandleTypeDef htim15;
 #define NUM_MOTORS          ((uint8_t) 4)
 #define NUM_OUTS            ((uint8_t) 4)
 /*max angle of the servo*/
-#define MAX_ANGLE           ((uint8_t)180)
+#define MAX_SERVO_ANGLE     ((uint8_t)180)
 /*min angle of the servo*/
-#define MIN_ANGLE           ((uint8_t)0)
+#define MIN_SERVO_ANGLE     ((uint8_t)0)
 /*Max frequency value that can be generated at the output in [HZ].*/
 #define MAX_FREQ_OUT        ((uint32_t)50000)
 
@@ -225,7 +225,7 @@ extern void SystemClock_Config(void);
 /***************************************************************************/
 /***************************** General Functions ***************************/
 /***************************************************************************/
-
+Module_Status SetServoAngle(Motor motor, uint8_t angle);
 
 #endif /* H14R9_H */
 
