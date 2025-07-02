@@ -36,12 +36,10 @@
 #define _P3
 #define _P4
 #define _P5
-//#define _P6
 
 /* Define Available USARTs */
 #define _USART1
 #define _USART2
-//#define _USART3
 #define _USART4
 #define _USART5
 #define _USART6
@@ -52,9 +50,14 @@
 #define UART_P3 &huart6
 #define UART_P4 &huart1
 #define UART_P5 &huart5
-//#define UART_P6 &huart3
 
 /* Module-specific Hardware Definitions ************************************/
+/* Define TIMERS handle variables */
+extern TIM_HandleTypeDef htim1;
+extern TIM_HandleTypeDef htim2;
+extern TIM_HandleTypeDef htim3;
+extern TIM_HandleTypeDef htim15;
+
 /* Port Definitions */
 #define	USART1_TX_PIN		GPIO_PIN_9
 #define	USART1_RX_PIN		GPIO_PIN_10
@@ -67,12 +70,6 @@
 #define	USART2_TX_PORT		GPIOA
 #define	USART2_RX_PORT		GPIOA
 #define	USART2_AF			GPIO_AF1_USART2
-
-//#define	USART3_TX_PIN		GPIO_PIN_8
-//#define	USART3_RX_PIN		GPIO_PIN_9
-//#define	USART3_TX_PORT		GPIOB
-//#define	USART3_RX_PORT		GPIOB
-//#define	USART3_AF			GPIO_AF4_USART3
 
 #define	USART4_TX_PIN		GPIO_PIN_0
 #define	USART4_RX_PIN		GPIO_PIN_1
@@ -92,12 +89,108 @@
 #define	USART6_RX_PORT		GPIOA
 #define	USART6_AF			GPIO_AF3_USART6
 
+/*PINs and PORTs of the Timers*/
+#define TIMER_OUT1_PIN  GPIO_PIN_11
+#define TIMER_OUT1_PORT GPIOA
+#define TIMER_OUT2_PIN  GPIO_PIN_15
+#define TIMER_OUT2_PORT GPIOB
+#define TIMER_OUT3_PIN  GPIO_PIN_11
+#define TIMER_OUT3_PORT GPIOB
+#define TIMER_OUT4_PIN  GPIO_PIN_1
+#define TIMER_OUT4_PORT GPIOB
+
+/*htim timers handlers*/
+#define TIMER_HANDLE_OUT1 htim1
+#define TIMER_HANDLE_OUT2 htim15
+#define TIMER_HANDLE_OUT3 htim2
+#define TIMER_HANDLE_OUT4 htim3
+
+/*Channels of the timers*/
+#define TIMER_CHANAL_OUT1 TIM_CHANNEL_4
+#define TIMER_CHANAL_OUT2 TIM_CHANNEL_2
+#define TIMER_CHANAL_OUT3 TIM_CHANNEL_4
+#define TIMER_CHANAL_OUT4 TIM_CHANNEL_4
+
+/*CCR(Capture Compare Register) of the Timers*/
+#define TIMER_CCR_OUT1 TIM1->CCR4
+#define TIMER_CCR_OUT2 TIM15->CCR2
+#define TIMER_CCR_OUT3 TIM2->CCR4
+#define TIMER_CCR_OUT4 TIM3->CCR4
+
 /* Indicator LED */
 #define _IND_LED_PORT		GPIOB
 #define _IND_LED_PIN		GPIO_PIN_14
 
 /* Module-specific Macro Definitions ***************************************/
 #define NUM_MODULE_PARAMS		 1
+
+/*
+ *  SERVO_FPWM_CLK =  Ftim_clk /((Period(ARR) + 1 ) * (Prescaler + 1))
+ *  50 HZ = 64MHZ / ((Period + 1 ) * ( 6399 + 1 )) --> Period = 200 - 1 = 199‬
+ */
+#define TIMER_PRESCALER     ((uint16_t)6399)
+/*Auto Reload Register(ARR)*/
+#define TIMER_PERIOD        ((uint16_t)199)
+/*Frequency of the signal that applied to the servo motor[HZ].*/
+#define SERVO_FPWM_CLK      ((uint8_t)50)
+/*Period of the signal that applied to the servo motor[Second]*/
+#define SERVO_TPWM_PERIOD   (1.0f/SERVO_FPWM_CLK)
+/*This value corresponds to the MAX width of pulse = 2.5 ms*/
+#define MAX_SERVO_PLUSE     ((float)2.5)
+/*This value corresponds to the MIN width of pulse = 0.5 ms*/
+#define MIN_SERVO_PLUSE     ((float)0.5)
+
+/*This value of CCR(Capture Compare Register Timer) which corresponds to the MAX width of pulse,
+ * and which will make the Servo rotate to the angle of (180)degrees.
+ * Duty cycle[%] = CCRx / ARR(Period) ---> CCRx(MAX) = Duty cycle[%] * ARR(Period) = MAX_SERVO_PLUSE[ms]/SERVO_TPWM_PERIOD[ms] * ARR(Period)
+ **/
+#define MAX_CCR_VALUE   round((MAX_SERVO_PLUSE/(SERVO_TPWM_PERIOD*1000))* TIMER_PERIOD)
+
+/*This value of CCR(Capture Compare Register Timer) which corresponds to the MIN width of pulse,
+ * and which will make the Servo rotate to the angle of (0)degrees.
+ * Duty cycle[%] = CCRx / ARR(Period) ---> CCRx(MAX) = Duty cycle[%] * ARR(Period) = MIN_SERVO_PLUSE[ms]/SERVO_TPWM_PERIOD[ms] * ARR(Period)
+ **/
+#define MIN_CCR_VALUE   round((MIN_SERVO_PLUSE/(SERVO_TPWM_PERIOD*1000))* TIMER_PERIOD)
+
+/*Numbers of Motors and output of PWM can be connected to this module*/
+#define NUM_MOTORS          ((uint8_t) 4)
+#define NUM_OUTS            ((uint8_t) 4)
+/*max angle of the servo*/
+#define MAX_ANGLE           ((uint8_t)180)
+/*min angle of the servo*/
+#define MIN_ANGLE           ((uint8_t)0)
+/*Max frequency value that can be generated at the output in [HZ].*/
+#define MAX_FREQ_OUT        ((uint32_t)50000)
+
+/*Structure for configuring a motor or PWM output channel.*/
+typedef struct {
+    TIM_HandleTypeDef* htim;
+    uint32_t channel;
+    volatile uint32_t* CCRx;
+} MotorConfig_t;
+
+/*External declaration of the Servo motor configuration array*/
+extern const MotorConfig_t motors[];
+
+/*External declaration of the generic PWM output channel configuration array*/
+extern const MotorConfig_t ChannelsOut[];
+
+/* Module-specific Enumeration Definitions *********************************/
+/*Enumeration of the name specified Servo motor that will be run*/
+typedef enum {
+    MOTOR_1 = 0,
+    MOTOR_2,
+    MOTOR_3,
+    MOTOR_4,
+} Motor;
+
+/*Enumeration of the name specified output that will be generate PWM signal*/
+typedef enum {
+    OUT_1 = 0,
+	OUT_2,
+	OUT_3,
+	OUT_4,
+} ChannelOut;
 
 /* Module-specific Type Definition *****************************************/
 /* Module-status Type Definition */
@@ -106,7 +199,10 @@ typedef enum {
 	H14R9_ERR_UnknownMessage,
 	H14R9_ERR_TERMINATED,
 	H14R9_ERR_WRONGPARAMS,
-	H14R9_ERROR =25
+	H14R9_ERR_INVALID_MOTOR,
+	H14R9_ERR_INVALID_OUT_CHANNEL,
+	H14R9_ERR_INVALID_FREQ,
+	H14R9_ERROR =255
 } Module_Status;
 
 /* Exported UART variables */
