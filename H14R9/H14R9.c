@@ -77,8 +77,24 @@ Module_Status Module_MessagingTask(uint16_t code,uint8_t port,uint8_t src,uint8_
 uint16_t RemapValue(uint8_t x, uint8_t in_min, uint8_t in_max, uint16_t out_min, uint16_t out_max);
 /* Create CLI commands *****************************************************/
 
-/* CLI command structure ***************************************************/
+portBASE_TYPE SetServoAngleCommand( int8_t *pcWriteBuffer, size_t xWriteBufferLen, const int8_t *pcCommandString );
+portBASE_TYPE GeneratePWMCommand( int8_t *pcWriteBuffer, size_t xWriteBufferLen, const int8_t *pcCommandString );
 
+/* CLI command structure ***************************************************/
+/* CLI command structure : SetServoAngle */
+const CLI_Command_Definition_t SetServoAngleDefinition = {
+	( const int8_t * ) "angle", /* The command string to type. */
+	( const int8_t * ) "angle:\r\nSet angle of the selected motor(m1 to m4)(1st par.),with required angle(0 to 180)degree(2st par.)\n\n\r",
+	SetServoAngleCommand, /* The function to run. */
+	2 /* tow parameters are expected. */
+};
+/*CLI command structure : pwmGenerate */
+const CLI_Command_Definition_t pwmGenerateDefinition = {
+	( const int8_t * ) "pwm", /* The command string to type. */
+	( const int8_t * ) "pwm:\r\nGenerate a PWM signal on a selected output(out1 to out4)(1st par.), with a specified frequency[HZ](2st par.), and duty cycle(0% up to 100%)(3st par.)\n\n\r",
+	GeneratePWMCommand, /* The function to run. */
+	3 /* three parameters are expected. */
+};
 
 /***************************************************************************/
 /************************ Private function Definitions *********************/
@@ -557,6 +573,8 @@ uint8_t GetPort(UART_HandleTypeDef *huart){
 /* Register this module CLI Commands */
 void RegisterModuleCLICommands(void){
 
+	FreeRTOS_CLIRegisterCommand(&SetServoAngleDefinition);
+    FreeRTOS_CLIRegisterCommand(&pwmGenerateDefinition);
 }
 
 /***************************************************************************/
@@ -706,7 +724,101 @@ Module_Status GeneratePWM(ChannelOut out, uint32_t freq_Hz, uint8_t dutyCycle) {
 /***************************************************************************/
 /********************************* Commands ********************************/
 /***************************************************************************/
+/***************************************************************************/
+portBASE_TYPE SetServoAngleCommand(int8_t *pcWriteBuffer,size_t xWriteBufferLen, const int8_t *pcCommandString) {
+	Module_Status status = H14R9_OK;
+	Motor motor = H14R9_ERROR;
+	uint8_t angle = 0;
+	int8_t *pcParameterString1;
+	int8_t *pcParameterString2;
+	portBASE_TYPE xParameterStringLength1 = 0;
+	portBASE_TYPE xParameterStringLength2 = 0;
 
+	static const int8_t *pcOKMessage = (int8_t*) "The servo motor_%d is turned to [%d] angle degree\r\n";
+	static const int8_t *pcWrongMotorMessage = (int8_t*) "Invalid Motor!\n\r";
+	static const int8_t *pcWrongAngleMessage = (int8_t*) "Invalid angle(out of the Rang)!\n\r";
+
+	(void) xWriteBufferLen;
+	configASSERT(pcWriteBuffer);
+	/* Obtain the 1st parameter string. */
+	pcParameterString1 = (int8_t*) FreeRTOS_CLIGetParameter(pcCommandString, 1,&xParameterStringLength1);
+	/*Read the Motor value*/
+	if (!strncmp((char*) pcParameterString1, "m1",strlen("m1"))) {
+		motor = MOTOR_1;
+	} else if (!strncmp((char*) pcParameterString1, "m2",strlen("m2"))) {
+		motor = MOTOR_2;
+	} else if (!strncmp((char*) pcParameterString1, "m3",strlen("m3"))) {
+		motor = MOTOR_3;
+	} else if (!strncmp((char*) pcParameterString1, "m4",strlen("m4"))) {
+		motor = MOTOR_4;
+	}
+	/* Obtain the 2st parameter string. */
+	pcParameterString2 = (int8_t*) FreeRTOS_CLIGetParameter(pcCommandString, 2,&xParameterStringLength2);
+	angle = (uint8_t) atol((char*) pcParameterString2);
+
+	status = SetServoAngle(motor, angle);
+	if (status == H14R9_OK) {
+		sprintf((char*) pcWriteBuffer, (char*) pcOKMessage, motor + 1,angle);
+	} else if (status == H14R9_ERR_INVALID_MOTOR) {
+		strcpy((char*) pcWriteBuffer, (char*) pcWrongMotorMessage);
+	} else if (status == H14R9_ERR_WRONGPARAMS) {
+		strcpy((char*) pcWriteBuffer, (char*) pcWrongAngleMessage);
+	}
+	return pdFALSE;
+}
+
+/***************************************************************************/
+portBASE_TYPE GeneratePWMCommand( int8_t *pcWriteBuffer, size_t xWriteBufferLen, const int8_t *pcCommandString ){
+	Module_Status status = H14R9_OK;
+	ChannelOut out = H14R9_ERROR;
+	uint8_t dutyCycle = 0;
+	uint32_t freq_Hz = 0 ;
+	int8_t *pcParameterString1;
+	int8_t *pcParameterString2;
+	int8_t *pcParameterString3;
+	portBASE_TYPE xParameterStringLength1 = 0;
+	portBASE_TYPE xParameterStringLength2 = 0;
+	portBASE_TYPE xParameterStringLength3 = 0;
+
+	static const int8_t *pcOKMessage = (int8_t*) "The out_%d channel started running at frequency:%dHZ with duty cycle:%d%%\r\n";
+	static const int8_t *pcWrongOutChannelMessage = (int8_t*) "Invalid channel!\n\r";
+	static const int8_t *pcWrongDutyCycleMessage = (int8_t*) "Invalid dutyCycle(out of the Rang)!\n\r";
+	static const int8_t *pcWrongFrequencyMessage = (int8_t*) "Invalid frequency(out of the Rang)!\n\r";
+
+	(void) xWriteBufferLen;
+	configASSERT(pcWriteBuffer);
+
+	/* Obtain the 1st parameter string. */
+	pcParameterString1 = (int8_t*) FreeRTOS_CLIGetParameter(pcCommandString, 1,&xParameterStringLength1);
+	/*Read the Motor value*/
+	if (!strncmp((char*) pcParameterString1, "out1",strlen("out1"))) {
+		out = OUT_1;
+	} else if (!strncmp((char*) pcParameterString1, "out2",strlen("out2"))) {
+		out = OUT_2;
+	} else if (!strncmp((char*) pcParameterString1, "out3",strlen("out3"))) {
+		out = OUT_3;
+	} else if (!strncmp((char*) pcParameterString1, "out4",strlen("out4"))) {
+		out = OUT_4;
+	}
+	/* Obtain the 2st parameter string. */
+	pcParameterString2 = (int8_t*) FreeRTOS_CLIGetParameter(pcCommandString, 2,&xParameterStringLength2);
+	freq_Hz = (uint32_t) atol((char*) pcParameterString2);
+	/* Obtain the 3st parameter string. */
+	pcParameterString3 = (int8_t*) FreeRTOS_CLIGetParameter(pcCommandString, 3,&xParameterStringLength3);
+	dutyCycle = (uint8_t) atol((char*) pcParameterString3);
+
+	status = GeneratePWM(out, freq_Hz, dutyCycle);
+	if (status == H14R9_OK) {
+		sprintf((char*) pcWriteBuffer, (char*) pcOKMessage, out + 1, freq_Hz, dutyCycle);
+	} else if (status == H14R9_ERR_INVALID_OUT_CHANNEL) {
+		strcpy((char*) pcWriteBuffer, (char*) pcWrongOutChannelMessage);
+	} else if (status == H14R9_ERR_INVALID_FREQ) {
+		strcpy((char*) pcWriteBuffer, (char*) pcWrongFrequencyMessage);
+	} else if (status == H14R9_ERR_WRONGPARAMS) {
+		strcpy((char*) pcWriteBuffer, (char*) pcWrongDutyCycleMessage);
+	}
+	return pdFALSE;
+}
 
 
 /***************************************************************************/
