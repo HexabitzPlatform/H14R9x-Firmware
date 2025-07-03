@@ -605,7 +605,7 @@ uint16_t RemapValue(uint8_t x, uint8_t in_min, uint8_t in_max, uint16_t out_min,
 /***************************************************************************/
 /***************************************************************************/
 /**
- * @Set the speed (duty cycle) of a motor
+ * @Set the desired Angle of the Servo motor
  * motor: Motor index (MOTOR_1 to MOTOR_4).
  * Angle:  Angle of the servo (0 to 180) degree.
  */
@@ -632,6 +632,77 @@ Module_Status SetServoAngle(Motor motor, uint8_t angle) {
 	}
 }
 
+/***************************************************************************/
+/**
+ * @Generate a PWM signal on a selected output channel with a specified frequency and duty cycle.
+ * out:Output channel index (OUT_1 to OUT_4).
+ * freq_Hz: Desired frequency in Hz (0 to 50KHz).
+ * dutyCycle: Duty cycle percentage (0 to 100).
+ */
+Module_Status GeneratePWM(ChannelOut out, uint32_t freq_Hz, uint8_t dutyCycle) {
+	if (out > OUT_4 || out < OUT_1) {
+		return H14R9_ERR_INVALID_OUT_CHANNEL;
+	}
+	if (dutyCycle > MAX_DUTY_CYCLE || dutyCycle < MIN_DUTY_CYCLE) {
+		return H14R9_ERR_WRONGPARAMS;
+	}
+
+	/* Only reconfigure timer if the frequency has changed from the last value */
+	if (prevFreq[out] != freq_Hz) {
+		/*Adjust this per clock setup*/
+		uint32_t timerClk = HAL_RCC_GetPCLK1Freq(); // Get the peripheral clock frequency used by the timer
+		uint32_t prescaler = 0;
+		uint32_t period = 0;
+
+		/*Try to calculate a suitable prescaler and period for the desired frequency*/
+		for (prescaler = 0; prescaler < 0xFFFF; prescaler++) {
+			/*Calculate the auto-reload period value*/
+			period = (timerClk / ((prescaler + 1) * freq_Hz)) - 1;
+			if (period <= 0xFFFF)
+				break; // Valid combination found
+		}
+		/*Return error if frequency cannot be achieved or exceeds limits*/
+		if (prescaler >= 0xFFFF || period >= 0xFFFF || freq_Hz > MAX_FREQ_OUT) {
+			return H14R9_ERR_INVALID_FREQ;
+		}
+		ChannelsOut[out].htim->Init.Prescaler = prescaler;
+		ChannelsOut[out].htim->Init.Period = period;
+
+		/*Re-initialize the timer with new settings*/
+		if (HAL_TIM_PWM_Init(ChannelsOut[out].htim) != HAL_OK) {
+			return H14R9_ERROR;
+		}
+
+		TIM_OC_InitTypeDef sConfigOC = { 0 };
+		sConfigOC.OCMode = TIM_OCMODE_PWM2;
+		sConfigOC.Pulse = (uint32_t) ((dutyCycle / 100.0f) * period);//Calculate pulse width(CCRx) based on duty cycle
+		sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+		sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+
+		if (HAL_TIM_PWM_ConfigChannel(ChannelsOut[out].htim, &sConfigOC,ChannelsOut[out].channel) != HAL_OK) {
+			return H14R9_ERROR;
+		}
+
+		/*Update the previous frequency to avoid reconfiguration next time*/
+		prevFreq[out] = freq_Hz;
+
+	} else {
+
+		/*If frequency hasn't changed, just update the CCR register (duty cycle)*/
+		uint32_t period = ChannelsOut[out].htim->Init.Period;
+		*(motors[out].CCRx) = (uint32_t) ((dutyCycle / 100.0f) * period);
+	}
+
+	/*Check if PWM has actually already started or not*/
+	if (!(pwmStartedFlags & (1 << out))) {
+		if (HAL_TIM_PWM_Start(ChannelsOut[out].htim, ChannelsOut[out].channel)!= HAL_OK) {
+			return H14R9_ERROR;
+		}
+		/*Set the Flag after PWM started*/
+		pwmStartedFlags |= (1 << out);
+	}
+	return H14R9_OK;
+}
 /***************************************************************************/
 /********************************* Commands ********************************/
 /***************************************************************************/

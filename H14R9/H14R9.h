@@ -159,6 +159,8 @@ extern TIM_HandleTypeDef htim15;
 #define MAX_SERVO_ANGLE     ((uint8_t)180)
 /*min angle of the servo*/
 #define MIN_SERVO_ANGLE     ((uint8_t)0)
+#define MAX_DUTY_CYCLE      ((uint8_t)100)
+#define MIN_DUTY_CYCLE      ((uint8_t)0)
 /*Max frequency value that can be generated at the output in [HZ].*/
 #define MAX_FREQ_OUT        ((uint32_t)50000)
 
@@ -226,6 +228,7 @@ extern void SystemClock_Config(void);
 /***************************** General Functions ***************************/
 /***************************************************************************/
 Module_Status SetServoAngle(Motor motor, uint8_t angle);
+Module_Status GeneratePWM(ChannelOut out, uint32_t freq_Hz, uint8_t dutyCycle);
 
 #endif /* H14R9_H */
 
