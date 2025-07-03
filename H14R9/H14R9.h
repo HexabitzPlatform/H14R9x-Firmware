@@ -198,7 +198,7 @@ typedef enum {
 /* Module-status Type Definition */
 typedef enum {
 	H14R9_OK =0,
-	H14R9_ERR_UnknownMessage,
+	H14R9_ERR_UNKNOWNMESSAGE,
 	H14R9_ERR_TERMINATED,
 	H14R9_ERR_WRONGPARAMS,
 	H14R9_ERR_INVALID_MOTOR,

@@ -538,15 +538,33 @@ void Module_Peripheral_Init(void){
 /***************************************************************************/
 /* H14R9 message processing task */
 Module_Status Module_MessagingTask(uint16_t code,uint8_t port,uint8_t src,uint8_t dst,uint8_t shift){
-	Module_Status result =H14R9_OK;
-	uint32_t period =0, timeout =0;
+	Module_Status result = H14R9_OK;
+	uint8_t motor = H14R9_ERROR;
+	uint8_t out = H14R9_ERROR;
+	uint8_t angle = 0;
+	uint8_t dutyCycle =0;
+	uint32_t freq_Hz = 0;
 
-	switch(code){
+	switch (code) {
+		case CODE_H14R9_ANGLE:
+			motor = (uint8_t) cMessage[port - 1][shift];
+			angle = (uint8_t) cMessage[port - 1][1 + shift];
+			SetServoAngle(motor - 1, angle);
+			break;
+
+		case CODE_H14R9_PWM:
+			out = (uint8_t) cMessage[port - 1][shift];
+			freq_Hz = ((uint32_t) cMessage[port - 1][1 + shift])
+						+ ((uint32_t) cMessage[port - 1][2 + shift] << 8)
+						+ ((uint32_t) cMessage[port - 1][3 + shift] << 16)
+						+ ((uint32_t) cMessage[port - 1][4 + shift] << 24);
+			dutyCycle = (uint8_t) cMessage[port - 1][5 + shift];
+			GeneratePWM(out - 1, freq_Hz, dutyCycle);
+			break;
 		default:
-			result =H14R9_ERR_UnknownMessage;
+			result = H14R9_ERR_UNKNOWNMESSAGE;
 			break;
 	}
-	
 	return result;
 }
 
