@@ -3,7 +3,7 @@
  All rights reserved
 
  File Name  : H14R9_dma.c
- Description: Initialize and manage DMA for UART (P1-P6).
+ Description: Initialize and manage DMA for UART (P1-P5).
  DMA: Setup, start/stop, mode switching for UART RX (Channels 1-6).
  CRC8: Compute CRC8 for message validation.
  */

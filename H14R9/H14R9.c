@@ -3,11 +3,11 @@
  All rights reserved
 
  File Name  : H14R9.c
- Description: Manages sensors and the system.
- Module_Peripheral_Init: Initialization of UART1-6, I2C2, TIM16-17, IWDG, Flash, RTC, DMA1, GPIO ports A-B-D.
- CLI: "sample" and "stream" commands for sensor interaction.
- Messages: Processes sampling requests from sensors (acceleration, gyroscope, magnetometer, temperature).
- Module-specific functions: Sampling and data streaming.
+ Description: H14R9x Control of up to 4 SERVO motors using PWM signals.
+ Module_Peripheral_Init: Initialization of UART1-6,TIM1,2,3,15,16,17, IWDG, Flash, RTC, DMA1, GPIO ports A-B-D.
+ CLI: "angle" and "pwm" commands for sensor interaction.
+ Messages: Set the desired SERVO angle and generate PWM signal.
+ Module-specific functions: SetServoAngle and GeneratePWM.
  */
 /* Includes ****************************************************************/
 #include "BOS.h"
@@ -41,6 +41,7 @@ const MotorConfig_t motors[] = {
     { &TIMER_HANDLE_OUT3, TIMER_CHANAL_OUT3, &TIMER_CCR_OUT3 },
     { &TIMER_HANDLE_OUT4, TIMER_CHANAL_OUT4, &TIMER_CCR_OUT4 }
 };
+
 /* Generic output channel configuration used for PWM signal generation.*/
 const MotorConfig_t ChannelsOut[] = {
     { &TIMER_HANDLE_OUT1, TIMER_CHANAL_OUT1, &TIMER_CCR_OUT1 },
@@ -55,7 +56,6 @@ uint16_t ServoPwmStartedFlags = 0U;
 uint16_t  pwmStartedFlags = 0U;
 /*Stores the previously used frequency for each output channel*/
 uint32_t prevFreq[NUM_OUTS]= {0};
-
 
 /* Module Parameters */
 ModuleParam_t ModuleParam[NUM_MODULE_PARAMS] ={};
@@ -88,6 +88,7 @@ const CLI_Command_Definition_t SetServoAngleDefinition = {
 	SetServoAngleCommand, /* The function to run. */
 	2 /* tow parameters are expected. */
 };
+
 /*CLI command structure : pwmGenerate */
 const CLI_Command_Definition_t pwmGenerateDefinition = {
 	( const int8_t * ) "pwm", /* The command string to type. */
@@ -629,12 +630,9 @@ Module_Status GetModuleParameter(uint8_t paramIndex,float *value){
  * out_max: The upper bound of the output range.
  * @return The remapValueped value within the output range.
  */
-uint16_t RemapValue(uint8_t x, uint8_t in_min, uint8_t in_max, uint16_t out_min, uint16_t out_max)
-{
+uint16_t RemapValue(uint8_t x, uint8_t in_min, uint8_t in_max, uint16_t out_min, uint16_t out_max) {
   return (x - in_min) * (out_max - out_min + 1) / (in_max - in_min + 1) + out_min;
 }
-
-
 
 /***************************************************************************/
 /***************************** General Functions ***************************/
@@ -837,7 +835,6 @@ portBASE_TYPE GeneratePWMCommand( int8_t *pcWriteBuffer, size_t xWriteBufferLen,
 	}
 	return pdFALSE;
 }
-
 
 /***************************************************************************/
 /***************** (C) COPYRIGHT HEXABITZ ***** END OF FILE ****************/

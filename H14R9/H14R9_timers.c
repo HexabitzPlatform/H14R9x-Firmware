@@ -3,9 +3,9 @@
  All rights reserved
 
  File Name  : H14R9_timers.c
- Description: Manages timers and watchdog.
- Timers: TIM16 (microsecond delays), TIM17 (millisecond delays).
- IWDG: Watchdog with 500ms timeout.
+ Description: Timer configurations for H14R9x module.
+ Timers     : TIM16 (microsecond delays), TIM17 (millisecond delays), IWDG (500ms watchdog).
+PWM Timers : TIM1, TIM2, TIM3, TIM15 to generate PWM signals
  */
 /* Includes ****************************************************************/
 #include "BOS.h"

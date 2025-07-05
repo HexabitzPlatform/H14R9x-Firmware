@@ -3,11 +3,10 @@
  All rights reserved
 
  File Name  : H14R9.h
- Description: Main header for module hardware configuration and sensor interfaces.
- UART: Six ports (P1-P6) mapped to USART1-6 with GPIO pin assignments.
- I2C2: Configured on PA6(SCL)/PA7(SDA) for LSM6DS3TR_C (IMU) and LSM303AGR (magnetometer).
- GPIO: Indicator LED on PB12, port pin configurations.
- Sensors: Accelerometer, gyroscope, magnetometer, temperature sampling/streaming.
+ Description: Main header for module hardware configuration and switch control.
+ UART       : Five ports (P1-P5) mapped to USART1-6 with GPIO pin assignments.
+ GPIO       : Indicator LED on PB14, port pin configurations.
+ TIMER      : four timers peripheral to generate four PWM signals for SERVO motors.
 */
 
 /* Define to prevent recursive inclusion ***********************************/
