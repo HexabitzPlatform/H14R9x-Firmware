@@ -77,15 +77,15 @@ Module_Status Module_MessagingTask(uint16_t code,uint8_t port,uint8_t src,uint8_
 uint16_t RemapValue(uint8_t x, uint8_t in_min, uint8_t in_max, uint16_t out_min, uint16_t out_max);
 /* Create CLI commands *****************************************************/
 
-portBASE_TYPE SetServoAngleCommand( int8_t *pcWriteBuffer, size_t xWriteBufferLen, const int8_t *pcCommandString );
+portBASE_TYPE MotorMoveToAngleCommand( int8_t *pcWriteBuffer, size_t xWriteBufferLen, const int8_t *pcCommandString );
 portBASE_TYPE GeneratePWMCommand( int8_t *pcWriteBuffer, size_t xWriteBufferLen, const int8_t *pcCommandString );
 
 /* CLI command structure ***************************************************/
-/* CLI command structure : SetServoAngle */
-const CLI_Command_Definition_t SetServoAngleDefinition = {
+/* CLI command structure : MotorMoveToAngle */
+const CLI_Command_Definition_t MotorMoveToAngleDefinition = {
 	( const int8_t * ) "angle", /* The command string to type. */
 	( const int8_t * ) "angle:\r\nSet angle of the selected motor(m1 to m4)(1st par.),with required angle(0 to 180)degree(2st par.)\n\n\r",
-	SetServoAngleCommand, /* The function to run. */
+	MotorMoveToAngleCommand, /* The function to run. */
 	2 /* tow parameters are expected. */
 };
 
@@ -550,7 +550,7 @@ Module_Status Module_MessagingTask(uint16_t code,uint8_t port,uint8_t src,uint8_
 		case CODE_H14R9_ANGLE:
 			motor = (uint8_t) cMessage[port - 1][shift];
 			angle = (uint8_t) cMessage[port - 1][1 + shift];
-			SetServoAngle(motor - 1, angle);
+			MotorMoveToAngle(motor - 1, angle);
 			break;
 
 		case CODE_H14R9_PWM:
@@ -592,7 +592,7 @@ uint8_t GetPort(UART_HandleTypeDef *huart){
 /* Register this module CLI Commands */
 void RegisterModuleCLICommands(void){
 
-	FreeRTOS_CLIRegisterCommand(&SetServoAngleDefinition);
+	FreeRTOS_CLIRegisterCommand(&MotorMoveToAngleDefinition);
     FreeRTOS_CLIRegisterCommand(&pwmGenerateDefinition);
 }
 
@@ -643,7 +643,7 @@ uint16_t RemapValue(uint8_t x, uint8_t in_min, uint8_t in_max, uint16_t out_min,
  * motor: Motor index (MOTOR_1 to MOTOR_4).
  * Angle:  Angle of the servo (0 to 180) degree.
  */
-Module_Status SetServoAngle(Motor motor, uint8_t angle) {
+Module_Status MotorMoveToAngle(Motor motor, uint16_t angle) {
 	if (motor > MOTOR_4 || motor < MOTOR_1) {
 		return H14R9_ERR_INVALID_MOTOR;
 	}
@@ -741,10 +741,10 @@ Module_Status GeneratePWM(ChannelOut out, uint32_t freq_Hz, uint8_t dutyCycle) {
 /********************************* Commands ********************************/
 /***************************************************************************/
 /***************************************************************************/
-portBASE_TYPE SetServoAngleCommand(int8_t *pcWriteBuffer,size_t xWriteBufferLen, const int8_t *pcCommandString) {
+portBASE_TYPE MotorMoveToAngleCommand(int8_t *pcWriteBuffer,size_t xWriteBufferLen, const int8_t *pcCommandString) {
 	Module_Status status = H14R9_OK;
 	Motor motor = H14R9_ERROR;
-	uint8_t angle = 0;
+	uint16_t angle = 0;
 	int8_t *pcParameterString1;
 	int8_t *pcParameterString2;
 	portBASE_TYPE xParameterStringLength1 = 0;
@@ -770,9 +770,9 @@ portBASE_TYPE SetServoAngleCommand(int8_t *pcWriteBuffer,size_t xWriteBufferLen,
 	}
 	/* Obtain the 2st parameter string. */
 	pcParameterString2 = (int8_t*) FreeRTOS_CLIGetParameter(pcCommandString, 2,&xParameterStringLength2);
-	angle = (uint8_t) atol((char*) pcParameterString2);
+	angle = (uint16_t) atol((char*) pcParameterString2);
 
-	status = SetServoAngle(motor, angle);
+	status = MotorMoveToAngle(motor, angle);
 	if (status == H14R9_OK) {
 		sprintf((char*) pcWriteBuffer, (char*) pcOKMessage, motor + 1,angle);
 	} else if (status == H14R9_ERR_INVALID_MOTOR) {

@@ -209,7 +209,6 @@ typedef enum {
 /* Exported UART variables */
 extern UART_HandleTypeDef huart1;
 extern UART_HandleTypeDef huart2;
-//extern UART_HandleTypeDef huart3;
 extern UART_HandleTypeDef huart4;
 extern UART_HandleTypeDef huart5;
 extern UART_HandleTypeDef huart6;
@@ -217,7 +216,6 @@ extern UART_HandleTypeDef huart6;
 /* Define UART Init prototypes */
 extern void MX_USART1_UART_Init(void);
 extern void MX_USART2_UART_Init(void);
-//extern void MX_USART3_UART_Init(void);
 extern void MX_USART4_UART_Init(void);
 extern void MX_USART5_UART_Init(void);
 extern void MX_USART6_UART_Init(void);
@@ -226,7 +224,7 @@ extern void SystemClock_Config(void);
 /***************************************************************************/
 /***************************** General Functions ***************************/
 /***************************************************************************/
-Module_Status SetServoAngle(Motor motor, uint8_t angle);
+Module_Status MotorMoveToAngle(Motor motor, uint16_t angle);
 Module_Status GeneratePWM(ChannelOut out, uint32_t freq_Hz, uint8_t dutyCycle);
 
 #endif /* H14R9_H */
